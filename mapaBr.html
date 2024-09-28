@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interativo Mundial</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            min-width: 200px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #info h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        #info p {
+            margin: 5px 0;
+        }
+        #info img {
+            width: 100px;
+            height: auto;
+            margin: 10px 0;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="info"></div>
+    <div id="loading">Carregando dados dos países...</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const info = document.getElementById('info');
+        const loading = document.getElementById('loading');
+
+        const countryDataCache = {};
+        const translations = {
+        "Afghanistan": "Afeganistão",
+        "Kabul": "Cabul",
+        "Albania": "Albânia",
+        "Tirana": "Tirana",
+        "Algeria": "Argélia",
+        "Algiers": "Argel",
+        "Andorra": "Andorra",
+        "Andorra la Vella": "Andorra-a-Velha",
+        "Angola": "Angola",
+        "Luanda": "Luanda",
+        "Antigua and Barbuda": "Antígua e Barbuda",
+        "Saint John's": "Saint John's",
+        "Argentina": "Argentina",
+        "Buenos Aires": "Buenos Aires",
+        "Armenia": "Armênia",
+        "Yerevan": "Erevã",
+        "Australia": "Austrália",
+        "Canberra": "Camberra",
+        "Austria": "Áustria",
+        "Vienna": "Viena",
+        "Azerbaijan": "Azerbaijão",
+        "Baku": "Baku",
+        "Bahamas": "Bahamas",
+        "Nassau": "Nassau",
+        "Bahrain": "Bahrein",
+        "Manama": "Manama",
+        "Bangladesh": "Bangladesh",
+        "Dhaka": "Daca",
+        "Barbados": "Barbados",
+        "Bridgetown": "Bridgetown",
+        "Belarus": "Bielorrússia",
+        "Minsk": "Minsk",
+        "Belgium": "Bélgica",
+        "Brussels": "Bruxelas",
+        "Belize": "Belize",
+        "Belmopan": "Belmopan",
+        "Benin": "Benin",
+        "Porto-Novo": "Porto-Novo",
+        "Bhutan": "Butão",
+        "Thimphu": "Thimphu",
+        "Bolivia": "Bolívia",
+        "Sucre": "Sucre",
+        "Bosnia and Herzegovina": "Bósnia e Herzegovina",
+        "Sarajevo": "Sarajevo",
+        "Botswana": "Botswana",
+        "Gaborone": "Gaborone",
+        "Brazil": "Brasil",
+        "Brasilia": "Brasília",
+        "Brunei": "Brunei",
+        "Bandar Seri Begawan": "Bandar Seri Begawan",
+        "Bulgaria": "Bulgária",
+        "Sofia": "Sófia",
+        "Burkina Faso": "Burkina Faso",
+        "Ouagadougou": "Uagadugu",
+        "Burundi": "Burundi",
+        "Gitega": "Gitega",
+        "Cabo Verde": "Cabo Verde",
+        "Praia": "Praia",
+        "Cambodia": "Camboja",
+        "Phnom Penh": "Phnom Penh",
+        "Cameroon": "Camarões",
+        "Yaoundé": "Iaundé",
+        "Canada": "Canadá",
+        "Ottawa": "Ottawa",
+        "Central African Republic": "República Centro-Africana",
+        "Bangui": "Bangui",
+        "Chad": "Chade",
+        "N'Djamena": "N'Djamena",
+        "Chile": "Chile",
+        "Santiago": "Santiago",
+        "China": "China",
+        "Beijing": "Pequim",
+        "Colombia": "Colômbia",
+        "Bogotá": "Bogotá",
+        "Comoros": "Comores",
+        "Moroni": "Moroni",
+        "Congo (Congo-Brazzaville)": "Congo (Congo-Brazavile)",
+        "Brazzaville": "Brazzaville",
+        "Costa Rica": "Costa Rica",
+        "San José": "San José",
+        "Croatia": "Croácia",
+        "Zagreb": "Zagreb",
+        "Cuba": "Cuba",
+        "Havana": "Havana",
+        "Cyprus": "Chipre",
+        "Nicosia": "Nicósia",
+        "Czech Republic": "República Tcheca",
+        "Prague": "Praga",
+        "Denmark": "Dinamarca",
+        "Copenhagen": "Copenhague",
+        "Djibouti": "Djibuti",
+        "Djibouti": "Djibuti",
+        "Dominica": "Dominica",
+        "Roseau": "Roseau",
+        "Dominican Republic": "República Dominicana",
+        "Santo Domingo": "Santo Domingo",
+        "East Timor": "Timor-Leste",
+        "Dili": "Díli",
+        "Ecuador": "Equador",
+        "Quito": "Quito",
+        "Egypt": "Egito",
+        "Cairo": "Cairo",
+        "El Salvador": "El Salvador",
+        "San Salvador": "San Salvador",
+        "Equatorial Guinea": "Guiné Equatorial",
+        "Malabo": "Malabo",
+        "Eritrea": "Eritreia",
+        "Asmara": "Asmara",
+        "Estonia": "Estônia",
+        "Tallinn": "Tallinn",
+        "Eswatini": "Eswatini",
+        "Mbabane": "Mbabane",
+        "Ethiopia": "Etiópia",
+        "Addis Ababa": "Adis Abeba",
+        "Fiji": "Fiji",
+        "Suva": "Suva",
+        "Finland": "Finlândia",
+        "Helsinki": "Helsinque",
+        "France": "França",
+        "Paris": "Paris",
+        "Gabon": "Gabão",
+        "Libreville": "Libreville",
+        "Gambia": "Gâmbia",
+        "Banjul": "Banjul",
+        "Georgia": "Geórgia",
+        "Tbilisi": "Tbilisi",
+        "Germany": "Alemanha",
+        "Berlin": "Berlim",
+        "Ghana": "Gana",
+        "Accra": "Acra",
+        "Greece": "Grécia",
+        "Athens": "Atenas",
+        "Grenada": "Granada",
+        "Saint George's": "São Jorge",
+        "Guatemala": "Guatemala",
+        "Guatemala City": "Cidade da Guatemala",
+        "Guinea": "Guiné",
+        "Conakry": "Conacri",
+        "Guinea-Bissau": "Guiné-Bissau",
+        "Bissau": "Bissau",
+        "Guyana": "Guiana",
+        "Georgetown": "Georgetown",
+        "Greenland": "Groelândia",
+        "Haiti": "Haiti",
+        "Port-au-Prince": "Porto Príncipe",
+        "Honduras": "Honduras",
+        "Tegucigalpa": "Tegucigalpa",
+        "Hungary": "Hungria",
+        "Budapest": "Budapeste",
+        "Iceland": "Islândia",
+        "Reykjavik": "Reiquiavique",
+        "India": "Índia",
+        "New Delhi": "Nova Délhi",
+        "Indonesia": "Indonésia",
+        "Jakarta": "Jacarta",
+        "Iran": "Irã",
+        "Tehran": "Teerã",
+        "Iraq": "Iraque",
+        "Baghdad": "Bagdá",
+        "Ireland": "Irlanda",
+        "Dublin": "Dublin",
+        "Israel": "Israel",
+        "Jerusalem": "Jerusalém",
+        "Italy": "Itália",
+        "Rome": "Roma",
+        "Jamaica": "Jamaica",
+        "Kingston": "Kingston",
+        "Japan": "Japão",
+        "Tokyo": "Tóquio",
+        "Jordan": "Jordânia",
+        "Amman": "Amã",
+        "Kazakhstan": "Cazaquistão",
+        "Nur-Sultan": "Nursultan",
+        "Kenya": "Quênia",
+        "Nairobi": "Nairóbi",
+        "Kiribati": "Quiribati",
+        "Tarawa": "Tarawa",
+        "Kuwait": "Kuwait",
+        "Kuwait City": "Cidade do Kuwait",
+        "Kyrgyzstan": "Quirguistão",
+        "Bishkek": "Bisqueque",
+        "Laos": "Laos",
+        "Vientiane": "Vientiane",
+        "Latvia": "Letônia",
+        "Riga": "Riga",
+        "Lebanon": "Líbano",
+        "Beirut": "Beirute",
+        "Lesotho": "Lesoto",
+        "Maseru": "Maseru",
+        "Liberia": "Libéria",
+        "Monrovia": "Monróvia",
+        "Libya": "Líbia",
+        "Tripoli": "Trípoli",
+        "Liechtenstein": "Liechtenstein",
+        "Vaduz": "Vaduz",
+        "Lithuania": "Lituânia",
+        "Vilnius": "Vilnius",
+        "Luxembourg": "Luxemburgo",
+        "Luxembourg City": "Cidade do Luxemburgo",
+        "Madagascar": "Madagascar",
+        "Antananarivo": "Antananarivo",
+        "Malawi": "Malawi",
+        "Lilongwe": "Lilongwe",
+        "Malaysia": "Malásia",
+        "Kuala Lumpur": "Kuala Lumpur",
+        "Maldives": "Maldivas",
+        "Malé": "Malé",
+        "Mali": "Mali",
+        "Bamako": "Bamako",
+        "Malta": "Malta",
+        "Valletta": "Valeta",
+        "Marshall Islands": "Ilhas Marshall",
+        "Majuro": "Majuro",
+        "Mauritania": "Mauritânia",
+        "Nouakchott": "Nouakchott",
+        "Mauritius": "Maurício",
+        "Port Louis": "Port Louis",
+        "Mexico": "México",
+        "Mexico City": "Cidade do México",
+        "Micronesia": "Micronésia",
+        "Palikir": "Palikir",
+        "Moldova": "Moldávia",
+        "Chisinau": "Chisinau",
+        "Monaco": "Mônaco",
+        "Monaco": "Mônaco",
+        "Mongolia": "Mongólia",
+        "Ulaanbaatar": "Ulan Bator",
+        "Montenegro": "Montenegro",
+        "Podgorica": "Podgorica",
+        "Morocco": "Marrocos",
+        "Rabat": "Rabat",
+        "Mozambique": "Moçambique",
+        "Maputo": "Maputo",
+        "Myanmar": "Mianmar",
+        "Naypyidaw": "Naipidau",
+        "Namibia": "Namíbia",
+        "Windhoek": "Windhoek",
+        "Nauru": "Nauru",
+        "Yaren": "Yaren",
+        "Nepal": "Nepal",
+        "Kathmandu": "Catmandu",
+        "Netherlands": "Países Baixos",
+        "Amsterdam": "Amsterdã",
+        "New Zealand": "Nova Zelândia",
+        "Wellington": "Wellington",
+        "Nicaragua": "Nicarágua",
+        "Managua": "Manágua",
+        "Niger": "Níger",
+        "Niamey": "Niamei",
+        "Nigeria": "Nigéria",
+        "Abuja": "Abuja",
+        "North Korea": "Coreia do Norte",
+        "Pyongyang": "Pyongyang",
+        "North Macedonia": "Macedônia do Norte",
+        "Skopje": "Skopje",
+        "Norway": "Noruega",
+        "Oslo": "Oslo",
+        "Oman": "Omã",
+        "Muscat": "Mascate",
+        "Pakistan": "Paquistão",
+        "Islamabad": "Islamabad",
+        "Palau": "Palau",
+        "Ngerulmud": "Ngerulmud",
+        "Panama": "Panamá",
+        "Panama City": "Cidade do Panamá",
+        "Papua New Guinea": "Papua Nova Guiné",
+        "Port Moresby": "Port Moresby",
+        "Paraguay": "Paraguai",
+        "Asunción": "Assunção",
+        "Peru": "Peru",
+        "Lima": "Lima",
+        "Philippines": "Filipinas",
+        "Manila": "Manila",
+        "Poland": "Polônia",
+        "Warsaw": "Varsóvia",
+        "Portugal": "Portugal",
+        "Lisbon": "Lisboa",
+        "Qatar": "Catar",
+        "Doha": "Doha",
+        "Romania": "Romênia",
+        "Bucharest": "Bucareste",
+        "Russia": "Rússia",
+        "Moscow": "Moscou",
+        "Rwanda": "Ruanda",
+        "Kigali": "Kigali",
+        "Saint Kitts and Nevis": "São Cristóvão e Névis",
+        "Basseterre": "Basseterre",
+        "Saint Lucia": "Santa Lúcia",
+        "Castries": "Castries",
+        "Saint Vincent and the Grenadines": "São Vicente e Granadinas",
+        "Kingstown": "Kingstown",
+        "Samoa": "Samoa",
+        "Apia": "Apia",
+        "San Marino": "San Marino",
+        "San Marino": "San Marino",
+        "Sao Tome and Principe": "São Tomé e Príncipe",
+        "São Tomé": "São Tomé",
+        "Saudi Arabia": "Arábia Saudita",
+        "Riyadh": "Riade",
+        "Senegal": "Senegal",
+        "Dakar": "Dacar",
+        "Serbia": "Sérvia",
+        "Belgrade": "Belgrado",
+        "Seychelles": "Seicheles",
+        "Victoria": "Vitória",
+        "Sierra Leone": "Serra Leoa",
+        "Freetown": "Freetown",
+        "Singapore": "Cingapura",
+        "Singapore": "Cingapura",
+        "Slovakia": "Eslováquia",
+        "Bratislava": "Bratislava",
+        "Slovenia": "Eslovênia",
+        "Ljubljana": "Liubliana",
+        "Solomon Islands": "Ilhas Salomão",
+        "Honiara": "Honiara",
+        "Somalia": "Somália",
+        "Mogadishu": "Mogadíscio",
+        "South Africa": "África do Sul",
+        "Pretoria": "Pretória",
+        "South Korea": "Coreia do Sul",
+        "Seoul": "Seul",
+        "South Sudan": "Sudão do Sul",
+        "Juba": "Juba",
+        "Spain": "Espanha",
+        "Madrid": "Madri",
+        "Sri Lanka": "Sri Lanka",
+        "Colombo": "Colombo",
+        "Sudan": "Sudão",
+        "Khartoum": "Cartum",
+        "Suriname": "Suriname",
+        "Paramaribo": "Paramaribo",
+        "Sweden": "Suécia",
+        "Stockholm": "Estocolmo",
+        "Switzerland": "Suíça",
+        "Bern": "Berna",
+        "Syria": "Síria",
+        "Damascus": "Damasco",
+        "Taiwan": "Taiwan",
+        "Taipei": "Taipé",
+        "Tajikistan": "Tajiquistão",
+        "Dushanbe": "Duchambe",
+        "Tanzania": "Tanzânia",
+        "Dodoma": "Dodoma",
+        "Thailand": "Tailândia",
+        "Bangkok": "Bangcoc",
+        "Togo": "Togo",
+        "Lomé": "Lomé",
+        "Tonga": "Tonga",
+        "Nukuʻalofa": "Nukuʻalofa",
+        "Trinidad and Tobago": "Trindade e Tobago",
+        "Port of Spain": "Porto de Espanha",
+        "Tunisia": "Tunísia",
+        "Tunis": "Túnis",
+        "Turkey": "Turquia",
+        "Ankara": "Ancara",
+        "Turkmenistan": "Turcomenistão",
+        "Ashgabat": "Asgabate",
+        "Tuvalu": "Tuvalu",
+        "Funafuti": "Funafuti",
+        "Uganda": "Uganda",
+        "Kampala": "Campala",
+        "Ukraine": "Ucrânia",
+        "Kyiv": "Kiev",
+        "United Arab Emirates": "Emirados Árabes Unidos",
+        "Abu Dhabi": "Abu Dhabi",
+        "United Kingdom": "Reino Unido",
+        "London": "Londres",
+        "United States": "Estados Unidos",
+        "Washington, D.C.": "Washington, D.C.",
+        "Uruguay": "Uruguai",
+        "Montevideo": "Montevidéu",
+        "Uzbekistan": "Uzbequistão",
+        "Tashkent": "Tashkent",
+        "Vanuatu": "Vanuatu",
+        "Port Vila": "Porto Vila",
+        "Vatican City": "Cidade do Vaticano",
+        "Vatican City": "Cidade do Vaticano",
+        "Venezuela": "Venezuela",
+        "Caracas": "Caracas",
+        "Vietnam": "Vietnã",
+        "Hanoi": "Hanói",
+        "Yemen": "Iêmen",
+        "Sana'a": "Sana",
+        "Zambia": "Zâmbia",
+        "Lusaka": "Lusaca",
+        "Zimbabwe": "Zimbábue",
+        "Harare": "Harare"
+    };
+
+
+        function formatPopulation(population) {
+            return population.toLocaleString();
+        }
+
+        function getCountryInfo(isoCode) {
+            if (countryDataCache[isoCode]) {
+                return Promise.resolve(countryDataCache[isoCode]);
+            }
+
+            return fetch(`https://restcountries.com/v3.1/alpha/${encodeURIComponent(isoCode)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        const countryInfo = {
+                            name: data[0].name.common,
+                            capital: data[0].capital ? data[0].capital[0] : 'N/A',
+                            population: data[0].population,
+                            flag: data[0].flags.png
+                        };
+
+                        if (translations[countryInfo.name]) {
+                            countryInfo.name = translations[countryInfo.name];
+                        }
+                        if (translations[countryInfo.capital]) {
+                            countryInfo.capital = translations[countryInfo.capital];
+                        }
+
+                        countryDataCache[isoCode] = countryInfo;
+                        return countryInfo;
+                    }
+                    throw new Error('País não encontrado');
+                });
+        }
+
+        fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                L.geoJSON(data, {
+                    style: {
+                        fillColor: '#3388ff',
+                        weight: 1,
+                        opacity: 1,
+                        color: 'white',
+                        fillOpacity: 0.7
+                    },
+                    onEachFeature: (feature, layer) => {
+                        layer.on({
+                            mouseover: (e) => {
+                                const country = e.target.feature.properties;
+                                info.innerHTML = 'Carregando informações...';
+                                info.style.display = 'block';
+                                
+                                getCountryInfo(country.ISO_A3)
+                                    .then(countryInfo => {
+                                        info.innerHTML = `
+                                            <h3>${countryInfo.name}</h3>
+                                            <img src="${countryInfo.flag}" alt="Bandeira de ${countryInfo.name}">
+                                            <p><strong>Capital:</strong> ${countryInfo.capital}</p>
+                                            <p><strong>População:</strong> ${formatPopulation(countryInfo.population)} habitantes</p>
+                                        `;
+                                    })
+                                    .catch(error => {
+                                        console.error('Erro ao obter informações do país:', error);
+                                        info.innerHTML = `
+                                            <h3>${country.ADMIN}</h3>
+                                            <p>Informações não disponíveis</p>
+                                        `;
+                                    });
+
+                                layer.setStyle({
+                                    fillColor: '#ff7800',
+                                    fillOpacity: 0.9
+                                });
+                            },
+                            mouseout: (e) => {
+                                info.style.display = 'none';
+                                layer.setStyle({
+                                    fillColor: '#3388ff',
+                                    fillOpacity: 0.7
+                                });
+                            }
+                        });
+                    }
+                }).addTo(map);
+            })
+            .catch(error => {
+                console.error('Erro ao carregar os dados:', error);
+                loading.innerHTML = 'Erro ao carregar os dados dos países.';
+            });
+    </script>
+</body>
+</html>
