@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio das Capitais do Mundo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('fundo.jpg'); /* Imagem de fundo */
+            background-size: cover; /* Faz a imagem cobrir todo o fundo */
+            background-position: center; /* Centraliza a imagem */
+            margin: 0;
+            padding: 0;
+        }
+
+        .start-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            text-align: center;
+            opacity: 0;
+            animation: fadeIn 2s forwards; /* Efeito de fade-in */
+            margin-top: 30vh; /* Ajuste a distância do topo */
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin: 0;
+            color: black; /* Título em preto */
+        }
+
+        p {
+            font-size: 1rem; /* Tamanho pequeno para o texto do autor */
+            margin-top: 20px; /* Espaço entre o título e o texto do autor */
+            color: rgb(0, 0, 0); /* Cor do texto do autor */
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="start-screen">
+        <h1>Desafio das</h1>
+        <h1>Capitais do Mundo</h1>
+        <p>Criado por Alcides Freire Vieira Júnior, email: <a href="mailto:hairjoe@gmail.com" style="color: white;">hairjoe@gmail.com</a></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                window.location.href = 'jogo.html'; // Redireciona para jogo.html após 5 segundos
+            }, 5000); // 5 segundos
+        });
+    </script>
+</body>
+</html>

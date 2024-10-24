@@ -1,0 +1,1467 @@
+
+<html>
+  <head>
+  <title>Desafio das Capitais do Mundo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: Arial, sans-serif;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+      #quiz-panel {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        max-width: 300px;
+        display: none;
+      }
+      .country-name {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+      .capital-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .capital-option {
+        padding: 5px 10px;
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      .capital-option:hover {
+        background-color: #e0e0e0;
+      }
+      .correct {
+        background-color: #4CAF50;
+        color: white;
+      }
+      .incorrect {
+        background-color: #f44336;
+        color: white;
+      }
+      #score-panel {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 15px 25px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        text-align: center;
+      }
+      #player-name {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      #score {
+        font-size: 24px;
+        font-weight: bold;
+      }
+      #fireworks-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2000;
+        pointer-events: none;
+        display: none;
+      }
+      #start-game-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2001;
+      }
+      #start-game-content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      #start-game-content button {
+        margin: 10px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      #hall-of-fame-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2002;
+      }
+      #hall-of-fame-content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      #hall-of-fame-content h2 {
+        margin-bottom: 10px;
+      }
+      #hall-of-fame-content h3 {
+        margin-bottom: 15px;
+      }
+      #hall-of-fame-entry {
+        margin-bottom: 20px;
+      }
+      #hall-of-fame-entry p {
+        margin: 5px 0;
+      }
+      #hall-of-fame-content button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      #exit-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #f44336;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        z-index: 1000;
+      }
+      #exit-button:hover {
+        background-color: #d32f2f;
+      }
+    </style>
+    </head>
+    <body>
+    <div id="map"></div>
+    <div id="quiz-panel"></div>
+    <div id="score-panel">
+      <div id="player-name"></div>
+      <div id="score">Pontuação: 0</div>
+    </div>
+    <div id="fireworks-container"></div>
+    <div id="start-game-modal" style="display: none;">
+      <div id="start-game-content">
+        <p>Como gostaria de jogar?</p>
+        <button onclick="startNewGame()">Novo Jogo</button>
+        <button id="continueGameBtn" onclick="continueGame()" style="display: none;">Continuar Jogo</button>
+      </div>
+    </div>
+    <div id="hall-of-fame-modal" style="display: none;">
+      <div id="hall-of-fame-content">
+        <h2>Parabéns! Você completou o jogo!</h2>
+        <h3>Hall da Fama</h3>
+        <div id="hall-of-fame-entry"></div>
+        <button onclick="closeHallOfFame()">Fechar</button>
+      </div>
+    </div>
+    <button id="exit-button" onclick="exitGame()">Sair</button>
+    <audio id="correctSound" src="correct.mp3"></audio>
+    <audio id="errorSound" src="error.mp3"></audio>
+
+    <script>
+      const map = L.map('map').setView([0, 0], 2);
+      let score = 0;
+      let playerName = '';
+      const answeredCountries = {};
+      const countryLayers = {};
+      const countryTimeouts = {};
+      const correctSound = document.getElementById('correctSound');
+      const errorSound = document.getElementById('errorSound');
+
+      function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      
+      L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}{r}.png', {
+      attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 8
+    }).addTo(map);
+    
+
+
+    const countryInfo = {
+  'Afeganistão': {
+    capital: 'Cabul',
+    options: ['Cabul', 'Herat', 'Kandahar', 'Mazar-i-Sharif'],
+    englishName: 'Afghanistan'
+  },
+  'África do Sul': {
+    capital: 'Pretória',
+    options: ['Cidade do Cabo', 'Pretória', 'Joanesburgo', 'Durban'],
+    englishName: 'South Africa'
+  },
+  'Albânia': {
+    capital: 'Tirana',
+    options: ['Tirana', 'Durrës', 'Vlorë', 'Shkodër'],
+    englishName: 'Albania'
+  },
+  'Alemanha': {
+    capital: 'Berlim',
+    options: ['Berlim', 'Munique', 'Hamburgo', 'Frankfurt'],
+    englishName: 'Germany'
+  },
+  'Argélia': {
+    capital: 'Argel',
+    options: ['Argel', 'Orã', 'Constantina', 'Tânger'],
+    englishName: 'Algeria'
+  },
+  'Argentina': {
+    capital: 'Buenos Aires',
+    options: ['Buenos Aires', 'Córdoba', 'Rosário', 'Mendoza'],
+    englishName: 'Argentina'
+  },
+  'Armênia': {
+    capital: 'Erevã',
+    options: ['Erevã', 'Gyumri', 'Vanadzor', 'Vagharshapat'],
+    englishName: 'Armenia'
+  },
+  'Austrália': {
+    capital: 'Canberra',
+    options: ['Sydney', 'Canberra', 'Melbourne', 'Brisbane'],
+    englishName: 'Australia'
+  },
+  'Áustria': {
+    capital: 'Viena',
+    options: ['Viena', 'Salzburgo', 'Graz', 'Innsbruck'],
+    englishName: 'Austria'
+  },
+  'Azerbaijão': {
+    capital: 'Bacu',
+    options: ['Bacu', 'Ganja', 'Sumqayit', 'Lankaran'],
+    englishName: 'Azerbaijan'
+  },
+  'Bahamas': {
+    capital: 'Nassau',
+    options: ['Nassau', 'Freeport', 'Marsh Harbour', 'George Town'],
+    englishName: 'Bahamas'
+  },
+
+  'Bangladesh': {
+    capital: 'Daca',
+    options: ['Daca', 'Chittagong', 'Khulna', 'Rajshahi'],
+    englishName: 'Bangladesh'
+  },
+  'Barbados': {
+    capital: 'Bridgetown',
+    options: ['Bridgetown', 'Speightstown', 'Oistins', 'Holetown'],
+    englishName: 'Barbados'
+  },
+  'Bélgica': {
+    capital: 'Bruxelas',
+    options: ['Bruxelas', 'Antuérpia', 'Gante', 'Bruges'],
+    englishName: 'Belgium'
+  },
+  'Belize': {
+    capital: 'Belmopan',
+    options: ['Belmopan', 'Cidade de Belize', 'San Ignacio', 'Corozal'],
+    englishName: 'Belize'
+  },
+  'Benin': {
+    capital: 'Porto-Novo',
+    options: ['Porto-Novo', 'Cotonu', 'Natitingou', 'Dassa-Zoumé'],
+    englishName: 'Benin'
+  },
+  'Birmânia': {
+    capital: 'Naypyidaw',
+    options: ['Yangon', 'Mandalay', 'Naypyidaw', 'Bagan'],
+    englishName: 'Myanmar'
+  },
+  'Brasil': {
+        capital: 'Brasília',
+        options: ['Brasília', 'Rio de Janeiro', 'São Paulo', 'Salvador'],
+        englishName: 'Brazil'
+    },
+  'Bulgária': {
+    capital: 'Sófia',
+    options: ['Sófia', 'Plovdiv', 'Varna', 'Burgas'],
+    englishName: 'Bulgaria'
+  },
+  'Cabo Verde': {
+    capital: 'Praia',
+    options: ['Praia', 'Mindelo', 'Santa Maria', 'São Filipe'],
+    englishName: 'Cape Verde'
+  },
+  'Camarões': {
+    capital: 'Yaoundé',
+    options: ['Yaoundé', 'Douala', 'Bamenda', 'Garoua'],
+    englishName: 'Cameroon'
+  },
+  'Canadá': {
+    capital: 'Ottawa',
+    options: ['Toronto', 'Vancouver', 'Ottawa', 'Montreal'],
+    englishName: 'Canada'
+  },
+  'Cazaquistão': {
+    capital: 'Nursultan',
+    options: ['Nursultan', 'Almaty', 'Shymkent', 'Karaganda'],
+    englishName: 'Kazakhstan'
+  },
+  'Chade': {
+    capital: 'N’Djamena',
+    options: ['N’Djamena', 'Moundou', 'Abeche', 'Sarh'],
+    englishName: 'Chad'
+  },
+  'Chile': {
+    capital: 'Santiago',
+    options: ['Santiago', 'Valparaíso', 'Concepción', 'La Serena'],
+    englishName: 'Chile'
+  },
+  'China': {
+    capital: 'Pequim',
+    options: ['Pequim', 'Xangai', 'Shenzhen', 'Guangzhou'],
+    englishName: 'China'
+  },
+  'Colômbia': {
+    capital: 'Bogotá',
+    options: ['Bogotá', 'Medellín', 'Cali', 'Cartagena'],
+    englishName: 'Colombia'
+  },
+  'Congo, República do': {
+    capital: 'Brazzaville',
+    options: ['Brazzaville', 'Pointe-Noire', 'Oyo', 'Nkayi'],
+    englishName: 'Republic of the Congo'
+  },
+  'Congo, República Democrática do': {
+    capital: 'Quinxassa',
+    options: ['Quinxassa', 'Lubumbashi', 'Mbuji-Mayi', 'Kananga'],
+    englishName: 'Democratic Republic of the Congo'
+  },
+  'Coreia do Norte': {
+    capital: 'Pyongyang',
+    options: ['Pyongyang', 'Seul', 'Hamheung', 'Chongjin'],
+    englishName: 'North Korea'
+  },
+  'Coreia do Sul': {
+    capital: 'Seul',
+    options: ['Seul', 'Busan', 'Incheon', 'Daegu'],
+    englishName: 'South Korea'
+  },
+  'Costa Rica': {
+    capital: 'San José',
+    options: ['San José', 'Alajuela', 'Cartago', 'Heredia'],
+    englishName: 'Costa Rica'
+  },
+  'Croácia': {
+    capital: 'Zagreb',
+    options: ['Zagreb', 'Split', 'Dubrovnik', 'Osijek'],
+    englishName: 'Croatia'
+  },
+  'Cuba': {
+    capital: 'Havana',
+    options: ['Havana', 'Santiago de Cuba', 'Camagüey', 'Holguín'],
+    englishName: 'Cuba'
+  },
+  'Dinamarca': {
+    capital: 'Copenhague',
+    options: ['Copenhague', 'Aarhus', 'Odense', 'Aalborg'],
+    englishName: 'Denmark'
+  },
+  'Egito': {
+    capital: 'Cairo',
+    options: ['Cairo', 'Alexandria', 'Giza', 'Luxor'],
+    englishName: 'Egypt'
+  },
+  'El Salvador': {
+    capital: 'San Salvador',
+    options: ['San Salvador', 'Santa Ana', 'San Miguel', 'Sonsonate'],
+    englishName: 'El Salvador'
+  },
+  'Emirados Árabes Unidos': {
+    capital: 'Abu Dhabi',
+    options: ['Abu Dhabi', 'Dubai', 'Sharjah', 'Ajman'],
+    englishName: 'United Arab Emirates'
+  },
+  'Equador': {
+    capital: 'Quito',
+    options: ['Quito', 'Guayaquil', 'Cuenca', 'Machala'],
+    englishName: 'Ecuador'
+  },
+  'Eslováquia': {
+    capital: 'Bratislava',
+    options: ['Bratislava', 'Košice', 'Prešov', 'Nitra'],
+    englishName: 'Slovakia'
+  },
+  'Eslovênia': {
+    capital: 'Liubliana',
+    options: ['Liubliana', 'Maribor', 'Celje', 'Kranj'],
+    englishName: 'Slovenia'
+  },
+  'Espanha': {
+    capital: 'Madri',
+    options: ['Madri', 'Barcelona', 'Valência', 'Sevilha'],
+    englishName: 'Spain'
+  },
+  'Estados Unidos': {
+    capital: 'Washington, D.C.',
+    options: ['Nova Iorque', 'Los Angeles', 'Chicago', 'Washington, D.C.'],
+    englishName: 'United States of America'
+  },
+  'Estônia': {
+    capital: 'Talinn',
+    options: ['Talinn', 'Tartu', 'Narva', 'Kohtla-Järve'],
+    englishName: 'Estonia'
+  },
+  'Etiópia': {
+    capital: 'Addis Abeba',
+    options: ['Addis Abeba', 'Dire Daua', 'Mekele', 'Gondar'],
+    englishName: 'Ethiopia'
+  },
+  'Fiji': {
+    capital: 'Suva',
+    options: ['Suva', 'Nadi', 'Lautoka', 'Labasa'],
+    englishName: 'Fiji'
+  },
+  'Filipinas': {
+    capital: 'Manila',
+    options: ['Manila', 'Cebu', 'Davao', 'Quezon City'],
+    englishName: 'Philippines'
+  },
+  'França': {
+    capital: 'Paris',
+    options: ['Paris', 'Marselha', 'Lyon', 'Toulouse'],
+    englishName: 'France'
+  },
+  'Gabão': {
+    capital: 'Libreville',
+    options: ['Libreville', 'Port-Gentil', 'Franceville', 'Moanda'],
+    englishName: 'Gabon'
+  },
+  'Gâmbia': {
+    capital: 'Banjul',
+    options: ['Banjul', 'Serrekunda', 'Brikama', 'Bakau'],
+    englishName: 'Gambia'
+  },
+  'Gana': {
+    capital: 'Acra',
+    options: ['Acra', 'Kumasi', 'Tamale', 'Takoradi'],
+    englishName: 'Ghana'
+  },
+  'Grécia': {
+    capital: 'Atenas',
+    options: ['Atenas', 'Tesalônica', 'Patras', 'Heracleia'],
+    englishName: 'Greece'
+  },
+  'Guatemala': {
+    capital: 'Cidade da Guatemala',
+    options: ['Cidade da Guatemala', 'Antígua', 'Quetzaltenango', 'Escuintla'],
+    englishName: 'Guatemala'
+  },
+  'Guiana': {
+    capital: 'Georgetown',
+    options: ['Georgetown', 'Linden', 'Anna Regina', 'New Amsterdam'],
+    englishName: 'Guyana'
+  },
+  'Guiné': {
+    capital: 'Conacri',
+    options: ['Conacri', 'Nzérékoré', 'Kankan', 'Kindia'],
+    englishName: 'Guinea'
+  },
+  'Guiné-Bissau': {
+    capital: 'Bissau',
+    options: ['Bissau', 'Gabú', 'Bafata', 'Bolama'],
+    englishName: 'Guinea-Bissau'
+  },
+  'Honduras': {
+    capital: 'Tegucigalpa',
+    options: ['Tegucigalpa', 'San Pedro Sula', 'Choloma', 'La Ceiba'],
+    englishName: 'Honduras'
+  },
+  'Hungria': {
+    capital: 'Budapeste',
+    options: ['Budapeste', 'Debrecen', 'Szeged', 'Miskolc'],
+    englishName: 'Hungary'
+  },
+  'Iémen': {
+    capital: 'Sana',
+    options: ['Sana', 'Aden', 'Taiz', 'Al Hudaydah'],
+    englishName: 'Yemen'
+  },
+  'Ilhas Marshall': {
+    capital: 'Majuro',
+    options: ['Majuro', 'Ebeye', 'Kili', 'Maloelap'],
+    englishName: 'Marshall Islands'
+  },
+  'Ilhas Salomão': {
+    capital: 'Honiara',
+    options: ['Honiara', 'Gizo', 'Auki', 'Munda'],
+    englishName: 'Solomon Islands'
+  },
+  'Ilhas Virgens (Reino Unido)': {
+    capital: 'Road Town',
+    options: ['Road Town', 'Tortola', 'Virgin Gorda', 'Jost Van Dyke'],
+    englishName: 'British Virgin Islands'
+  },
+  'Ilhas Virgens (Estados Unidos)': {
+    capital: 'Charlotte Amalie',
+    options: ['Charlotte Amalie', 'Christiansted', 'Frederiksted', 'Cruz Bay'],
+    englishName: 'United States Virgin Islands'
+  },
+  'Indonésia': {
+    capital: 'Jacarta',
+    options: ['Jacarta', 'Bali', 'Surabaya', 'Medan'],
+    englishName: 'Indonesia'
+  },
+  'Irã': {
+    capital: 'Teerã',
+    options: ['Teerã', 'Isfahan', 'Tebriz', 'Shiraz'],
+    englishName: 'Iran'
+  },
+  'Iraque': {
+    capital: 'Bagdá',
+    options: ['Bagdá', 'Basra', 'Erbil', 'Nassíria'],
+    englishName: 'Iraq'
+  },
+  'Irlanda': {
+    capital: 'Dublin',
+    options: ['Dublin', 'Cork', 'Limerick', 'Galway'],
+    englishName: 'Ireland'
+  },
+  'Islândia': {
+    capital: 'Reiquiavique',
+    options: ['Reiquiavique', 'Akureyri', 'Vestmannaeyjar', 'Selfoss'],
+    englishName: 'Iceland'
+  },
+  'Israel': {
+    capital: 'Jerusalém',
+    options: ['Jerusalém', 'Tel Aviv', 'Haifa', 'Eilat'],
+    englishName: 'Israel'
+  },
+  'Itália': {
+    capital: 'Roma',
+    options: ['Roma', 'Milão', 'Nápoles', 'Florença'],
+    englishName: 'Italy'
+  },
+  'Jamaica': {
+    capital: 'Kingston',
+    options: ['Kingston', 'Montego Bay', 'Mandeville', 'Spanish Town'],
+    englishName: 'Jamaica'
+  },
+  'Japão': {
+    capital: 'Tóquio',
+    options: ['Tóquio', 'Osaka', 'Quioto', 'Yokohama'],
+    englishName: 'Japan'
+  },
+  'Jordânia': {
+    capital: 'Amã',
+    options: ['Amã', 'Aqaba', 'Irbid', 'Madaba'],
+    englishName: 'Jordan'
+  },
+  'Kazakhstan': {
+    capital: 'Nursultan',
+    options: ['Nursultan', 'Almaty', 'Shymkent', 'Karaganda'],
+    englishName: 'Kazakhstan'
+  },
+  'Quênia': {
+    capital: 'Nairóbi',
+    options: ['Nairóbi', 'Mombaça', 'Nakuru', 'Eldoret'],
+    englishName: 'Kenya'
+  },
+  'Líbano': {
+    capital: 'Beirute',
+    options: ['Beirute', 'Tripoli', 'Sidon', 'Tyre'],
+    englishName: 'Lebanon'
+  },
+  'Lituânia': {
+    capital: 'Vílnius',
+    options: ['Vílnius', 'Kaunas', 'Klaipeda', 'Šiauliai'],
+    englishName: 'Lithuania'
+  },
+  'Luxemburgo': {
+    capital: 'Luxemburgo',
+    options: ['Luxemburgo', 'Esch-sur-Alzette', 'Differdange', 'Dudelange'],
+    englishName: 'Luxembourg'
+  },
+  'Malásia': {
+    capital: 'Putrajaya',
+    options: ['Putrajaya', 'Kuala Lumpur', 'Penang', 'Malaca'],
+    englishName: 'Malaysia'
+  },
+  'Malawi': {
+    capital: 'Lilongwe',
+    options: ['Lilongwe', 'Blantyre', 'Mzuzu', 'Kasungu'],
+    englishName: 'Malawi'
+  },
+  'Maldivas': {
+    capital: 'Malé',
+    options: ['Malé', 'Addu City', 'Fuvahmulah', 'Dhidhdhoo'],
+    englishName: 'Maldives'
+  },
+  'Mali': {
+    capital: 'Bamaco',
+    options: ['Bamaco', 'Sikasso', 'Kayes', 'Kidal'],
+    englishName: 'Mali'
+  },
+  'Malta': {
+    capital: 'Valletta',
+    options: ['Valletta', 'Birkirkara', 'Sliema', 'Mosta'],
+    englishName: 'Malta'
+  },
+  'Marrocos': {
+    capital: 'Rabat',
+    options: ['Rabat', 'Casablanca', 'Marrakech', 'Tânger'],
+    englishName: 'Morocco'
+  },
+  'Maurício': {
+    capital: 'Port Louis',
+    options: ['Port Louis', 'Beau Bassin', 'Quatre Bornes', 'Curepipe'],
+    englishName: 'Mauritius'
+  },
+  'México': {
+    capital: 'Cidade do México',
+    options: ['Cidade do México', 'Guadalajara', 'Monterrey', 'Puebla'],
+    englishName: 'Mexico'
+  },
+  'Moçambique': {
+    capital: 'Maputo',
+    options: ['Maputo', 'Beira', 'Nampula', 'Tete'],
+    englishName: 'Mozambique'
+  },
+  'Namíbia': {
+    capital: 'Windhoek',
+    options: ['Windhoek', 'Swakopmund', 'Walvis Bay', 'Katima Mulilo'],
+    englishName: 'Namibia'
+  },
+  'Nepal': {
+    capital: 'Catmandu',
+    options: ['Catmandu', 'Pokhara', 'Lalitpur', 'Bhaktapur'],
+    englishName: 'Nepal'
+  },
+  'Nicarágua': {
+    capital: 'Manágua',
+    options: ['Manágua', 'León', 'Granada', 'Masaya'],
+    englishName: 'Nicaragua'
+  },
+  'Níger': {
+    capital: 'Niamey',
+    options: ['Niamey', 'Maradi', 'Agadez', 'Zinder'],
+    englishName: 'Niger'
+  },
+  'Nigéria': {
+    capital: 'Abuja',
+    options: ['Abuja', 'Lagos', 'Port Harcourt', 'Ibadan'],
+    englishName: 'Nigeria'
+  },
+  'Noruega': {
+    capital: 'Oslo',
+    options: ['Oslo', 'Bergen', 'Stavanger', 'Drammen'],
+    englishName: 'Norway'
+  },
+  'Nova Zelândia': {
+    capital: 'Wellington',
+    options: ['Wellington', 'Auckland', 'Christchurch', 'Hamilton'],
+    englishName: 'New Zealand'
+  },
+  'Panamá': {
+    capital: 'Cidade do Panamá',
+    options: ['Cidade do Panamá', 'David', 'Colón', 'Chiriquí'],
+    englishName: 'Panama'
+  },
+  'Paraguai': {
+    capital: 'Assunção',
+    options: ['Assunção', 'Ciudad del Este', 'Encarnación', 'Pedro Juan Caballero'],
+    englishName: 'Paraguay'
+  },
+  'Paquistão': {
+    capital: 'Islamabad',
+    options: ['Islamabad', 'Karachi', 'Lahore', 'Peshawar'],
+    englishName: 'Pakistan'
+  },
+  'República Centro-Africana': {
+    capital: 'Bangui',
+    options: ['Bangui', 'Birao', 'Berbérati', 'Mbaïki'],
+    englishName: 'Central African Republic'
+  },
+  'República Checa': {
+    capital: 'Praga',
+    options: ['Praga', 'Brno', 'Ostrava', 'Plzeň'],
+    englishName: 'Czech Republic'
+  },
+  'República Democrática do Congo': {
+    capital: 'Quinxassa',
+    options: ['Quinxassa', 'Lubumbashi', 'Kisangani', 'Mbuji-Mayi'],
+    englishName: 'Democratic Republic of the Congo'
+  },
+
+  'Romênia': {
+    capital: 'Bucareste',
+    options: ['Bucareste', 'Cluj-Napoca', 'Timișoara', 'Iași'],
+    englishName: 'Romania'
+  },
+  'Ruanda': {
+    capital: 'Kigali',
+    options: ['Kigali', 'Butare', 'Gitarama', 'Ruhengeri'],
+    englishName: 'Rwanda'
+  },
+  'Rússia': {
+    capital: 'Moscovo',
+    options: ['Moscovo', 'São Petersburgo', 'Novosibirsk', 'Nizhny Novgorod'],
+    englishName: 'Russia'
+  },
+  'Senegal': {
+    capital: 'Dacar',
+    options: ['Dacar', 'Thiès', 'Dakar', 'Kaolack'],
+    englishName: 'Senegal'
+  },
+  'Serra Leoa': {
+    capital: 'Freetown',
+    options: ['Freetown', 'Bo', 'Kenema', 'Makeni'],
+    englishName: 'Sierra Leone'
+  },
+  'Singapura': {
+    capital: 'Cingapura',
+    options: ['Cingapura', 'Jurong', 'Woodlands', 'Yishun'],
+    englishName: 'Singapore'
+  },
+  'Síria': {
+    capital: 'Damasco',
+    options: ['Damasco', 'Aleppo', 'Homs', 'Latakia'],
+    englishName: 'Syria'
+  },
+  'Somália': {
+    capital: 'Mogadíscio',
+    options: ['Mogadíscio', 'Merca', 'Baidoa', 'Kismayo'],
+    englishName: 'Somalia'
+  },
+  'Sri Lanka': {
+    capital: 'Sri Jayawardenepura Kotte',
+    options: ['Sri Jayawardenepura Kotte', 'Colombo', 'Kandy', 'Galle'],
+    englishName: 'Sri Lanka'
+  },
+  'Sudão': {
+    capital: 'Cartum',
+    options: ['Cartum', 'Omdurman', 'Nyala', 'El Geneina'],
+    englishName: 'Sudan'
+  },
+  'Suécia': {
+    capital: 'Estocolmo',
+    options: ['Estocolmo', 'Gotemburgo', 'Malmö', 'Uppsala'],
+    englishName: 'Sweden'
+  },
+  'Suíça': {
+    capital: 'Berna',
+    options: ['Berna', 'Zurique', 'Genebra', 'Basileia'],
+    englishName: 'Switzerland'
+  },
+  'Tailândia': {
+    capital: 'Banguecoque',
+    options: ['Banguecoque', 'Chiang Mai', 'Phuket', 'Nakhon Ratchasima'],
+    englishName: 'Thailand'
+  },
+ 
+  'Tajiquistão': {
+    capital: 'Dušanbe',
+    options: ['Dušanbe', 'Khujand', 'Kulob', 'Istaravshan'],
+    englishName: 'Tajikistan'
+  },
+  'Timor-Leste': {
+    capital: 'Díli',
+    options: ['Díli', 'Baucau', 'Maliana', 'Lautém'],
+    englishName: 'Timor-Leste'
+  },
+  'Togo': {
+    capital: 'Lomé',
+    options: ['Lomé', 'Kpalimé', 'Tsévié', 'Atakpamé'],
+    englishName: 'Togo'
+  },
+  'Trinidad e Tobago': {
+    capital: 'Porto de Espanha',
+    options: ['Porto de Espanha', 'San Fernando', 'Point Fortin', 'Arima'],
+    englishName: 'Trinidad and Tobago'
+  },
+  'Tunísia': {
+    capital: 'Tunis',
+    options: ['Tunis', 'Sfax', 'Sousse', 'Kairouan'],
+    englishName: 'Tunisia'
+  },
+  'Turcomenistão': {
+    capital: 'Asgabate',
+    options: ['Asgabate', 'Turkmenbashi', 'Mary', 'Dashoguz'],
+    englishName: 'Turkmenistan'
+  },
+  'Turquia': {
+    capital: 'Ancara',
+    options: ['Ancara', 'Istambul', 'Izmir', 'Bursa'],
+    englishName: 'Turkey'
+  },
+  'Ucrânia': {
+    capital: 'Quieve',
+    options: ['Quieve', 'Lviv', 'Odessa', 'Kharkiv'],
+    englishName: 'Ukraine'
+  },
+  'Uganda': {
+    capital: 'Campala',
+    options: ['Campala', 'Jinja', 'Mbarara', 'Gulu'],
+    englishName: 'Uganda'
+  },
+  'Uruguai': {
+    capital: 'Montevidéu',
+    options: ['Montevidéu', 'Salto', 'Paysandú', 'Maldonado'],
+    englishName: 'Uruguay'
+  },
+  'Vanuatu': {
+    capital: 'Port Vila',
+    options: ['Port Vila', 'Luganville', 'Espiritu Santo', 'Tanna'],
+    englishName: 'Vanuatu'
+  },
+  'Vaticano': {
+    capital: 'Cidade do Vaticano',
+    options: ['Cidade do Vaticano', 'Roma', 'Belo Horizonte', 'Milão'],
+    englishName: 'Vatican City'
+  },
+  'Venezuela': {
+    capital: 'Caracas',
+    options: ['Caracas', 'Maracaibo', 'Valência', 'Barquisimeto'],
+    englishName: 'Venezuela'
+  },
+  'Zâmbia': {
+    capital: 'Lusaca',
+    options: ['Lusaca', 'Kitwe', 'Ndola', 'Livingstone'],
+    englishName: 'Zambia'
+  },
+  'Zimbábue': {
+    capital: 'Harare',
+    options: ['Harare', 'Bulawayo', 'Mutare', 'Gweru'],
+    englishName: 'Zimbabwe'
+  },
+  'Peru': {
+    capital: 'Lima',
+    options: ['Cusco', 'Lima', 'Arequipa', 'Trujillo'],
+    englishName: 'Peru'
+  },
+  'Bolívia': {
+    capital: 'Sucre',
+    options: ['La Paz', 'Cochabamba', 'Santa Cruz', 'Sucre'],
+    englishName: 'Bolivia'
+  },
+  'Suriname': {
+    capital: 'Paramaribo',
+    options: ['Paramaribo', 'Nieuw Nickerie', 'Lelydorp', 'Moengo'],
+    englishName: 'Suriname'
+  },
+
+  'Arábia Saudita': {
+    capital: 'Riad',
+    options: ['Jidá', 'Riad', 'Meca', 'Medina'],
+    englishName: 'Saudi Arabia'
+  },
+  'Sudão do Sul': {
+    capital: 'Juba',
+    options: ['Juba', 'Malakal', 'Wau', 'Bor'],
+    englishName: 'South Sudan'
+  },
+  'Costa do Marfim': {
+    capital: 'Yamoussoukro',
+    options: ['Abidjan', 'Yamoussoukro', 'Bouaké', 'Daloa'],
+    englishName: 'Ivory Coast'
+  },
+  'Líbia': {
+    capital: 'Trípoli',
+    options: ['Trípoli', 'Bengasi', 'Misrata', 'Sabha'],
+    englishName: 'Libya'
+  },
+  'Reino Unido': {
+    capital: 'Londres',
+    options: ['Londres', 'Manchester', 'Edimburgo', 'Birmingham'],
+    englishName: 'United Kingdom'
+  },
+  'Letônia': {
+    capital: 'Riga',
+    options: ['Riga', 'Daugavpils', 'Liepāja', 'Jelgava'],
+    englishName: 'Latvia'
+  },
+  'Bielorrússia': {
+    capital: 'Minsk',
+    options: ['Minsk', 'Gomel', 'Mogilev', 'Vitebsk'],
+    englishName: 'Belarus'
+  },
+  'Moldávia': {
+    capital: 'Chisinau',
+    options: ['Chisinau', 'Tiraspol', 'Bălți', 'Cahul'],
+    englishName: 'Moldova'
+  },
+  'Quirguistão': {
+    capital: 'Bishkek',
+    options: ['Bishkek', 'Osh', 'Jalal-Abad', 'Karakol'],
+    englishName: 'Kyrgyzstan'
+  },
+  'Mongólia': {
+    capital: 'Ulaanbaatar',
+    options: ['Ulaanbaatar', 'Erdenet', 'Darkhan', 'Choibalsan'],
+    englishName: 'Mongolia'
+  },
+  'Uzbequistão': {
+    capital: 'Tashkent',
+    options: ['Tashkent', 'Samarkand', 'Bukhara', 'Khiva'],
+    englishName: 'Uzbekistan'
+  },
+  'Taiwan': {
+    capital: 'Taipé',
+    options: ['Taipé', 'Kaohsiung', 'Taichung', 'Tainan'],
+    englishName: 'Taiwan'
+  },
+  'Papua Nova Guiné': {
+    capital: 'Port Moresby',
+    options: ['Port Moresby', 'Lae', 'Madang', 'Goroka'],
+    englishName: 'Papua New Guinea'
+  },
+  'Nova Caledônia': {
+    capital: 'Nouméa',
+    options: ['Nouméa', 'Mont-Dore', 'Dumbéa', 'Bourail'],
+    englishName: 'New Caledonia'
+  },
+  'Tonga': {
+    capital: 'Nukuʻalofa',
+    options: ['Nukuʻalofa', 'Neiafu', 'Vavaʻu', 'Haʻapai'],
+    englishName: 'Tonga'
+  },
+  'Samoa': {
+    capital: 'Apia',
+    options: ['Apia', 'Vaitele', 'Faleasiu', 'Malie'],
+    englishName: 'Samoa'
+  },
+  'Bahamas': {
+    capital: 'Nassau',
+    options: ['Nassau', 'Freeport', 'West End', 'Lucaya'],
+    englishName: 'Bahamas'
+  },
+
+  'Antígua e Barbuda': {
+    capital: 'Saint John\'s',
+    options: ['Saint John\'s', 'All Saints', 'Liberta', 'Potters Village'],
+    englishName: 'Antigua and Barbuda'
+  },
+  'São Cristóvão e Nevis': {
+    capital: 'Basseterre',
+    options: ['Basseterre', 'Charlestown', 'Sandy Point Town', 'Cayon'],
+    englishName: 'Saint Kitts and Nevis'
+  },
+ 
+  'São Vicente e Granadinas': {
+    capital: 'Kingstown',
+    options: ['Kingstown', 'Georgetown', 'Barrouallie', 'Layou'],
+    englishName: 'Saint Vincent and the Grenadines'
+  },
+
+  'Trinidad e Tobago': {
+    capital: 'Port of Spain',
+    options: ['Port of Spain', 'San Fernando', 'Chaguanas', 'Arima'],
+    englishName: 'Trinidad and Tobago'
+  },
+  'Jamaica': {
+    capital: 'Kingston',
+    options: ['Kingston', 'Montego Bay', 'Spanish Town', 'Portmore'],
+    englishName: 'Jamaica'
+  },
+
+  'Cuba': {
+    capital: 'Havana',
+    options: ['Havana', 'Santiago de Cuba', 'Camagüey', 'Holguín'],
+    englishName: 'Cuba'
+  },
+  'Haiti': {
+    capital: 'Porto Príncipe',
+    options: ['Porto Príncipe', 'Cap-Haïtien', 'Les Cayes', 'Gonaïves'],
+    englishName: 'Haiti'
+  },
+  'República Dominicana': {
+    capital: 'Santo Domingo',
+    options: ['Santo Domingo', 'Santiago de los Caballeros', 'La Vega', 'San Pedro de Macorís'],
+    englishName: 'Dominican Republic'
+  },
+  'Porto Rico': {
+    capital: 'San Juan',
+    options: ['San Juan', 'Ponce', 'Caguas', 'Mayagüez'],
+    englishName: 'Puerto Rico'
+  },
+  'Dominica': {
+    capital: 'Roseau',
+    options: ['Roseau', 'Portsmouth', 'Marigot', 'Berekua'],
+    englishName: 'Dominica'
+  },
+  'Martinica': {
+    capital: 'Fort-de-France',
+    options: ['Fort-de-France', 'Le Lamentin', 'Sainte-Marie', 'La Trinité'],
+    englishName: 'Martinique'
+  },
+  'Santa Lucia': {
+    capital: 'Castries',
+    options: ['Castries', 'Vieux Fort', 'Soufrière', 'Micoud'],
+    englishName: 'Saint Lucia'
+  },
+  'Barbados': {
+    capital: 'Bridgetown',
+    options: ['Bridgetown', 'Speightstown', 'Oistins', 'Holetown'],
+    englishName: 'Barbados'
+  },
+  'São Vicente e Granadinas': {
+    capital: 'Kingstown',
+    options: ['Kingstown', 'Georgetown', 'Barrouallie', 'Layou'],
+    englishName: 'Saint Vincent and the Grenadines'
+  },
+  'Granada': {
+    capital: 'Saint George\'s',
+    options: ['Saint George\'s', 'Gouyave', 'Grenville', 'Victoria'],
+    englishName: 'Grenada'
+  },
+  'Curaçao': {
+    capital: 'Willemstad',
+    options: ['Willemstad', 'Santa Maria', 'Tera Kora', 'Barber'],
+    englishName: 'Curaçao'
+  },
+  'Aruba': {
+    capital: 'Oranjestad',
+    options: ['Oranjestad', 'San Nicolas', 'Paradera', 'Santa Cruz'],
+    englishName: 'Aruba'
+  },
+ 'Groenlândia': {
+    capital: 'Nuuk',
+    options: ['Nuuk', 'Sisimiut', 'Ilulissat', 'Qaqortoq'],
+    englishName: 'Greenland'
+},
+'Madagascar': {
+    capital: 'Antananarivo',
+    options: ['Antananarivo', 'Toamasina', 'Fianarantsoa', 'Mahajanga'],
+    englishName: 'Madagascar'
+},
+'Finlândia': {
+  capital: 'Helsinque',
+  options: ['Helsinque', 'Tampere', 'Hämeenlinna', 'Oulu'],
+  englishName: 'Finland'
+},
+'Índia': {
+  capital: 'Nova Délhi',
+  options: ['Nova Délhi', 'Mumbai', 'Bangalore', 'Calcutá'],
+  englishName: 'India'
+},
+'Polônia': {
+  capital: 'Varsóvia',
+  options: ['Varsóvia', 'Cracóvia', 'Gdańsk', 'Wrocław'],
+  englishName: 'Poland',
+},
+  'Ruanda': {
+    capital: 'Quigali',
+    options: ['Kigali', 'Butare', 'Gisenyi', 'Musanze'],
+    englishName: 'Rwanda'
+  },
+  'Burundi': {
+    capital: 'Gitega',
+    options: ['Bujumbura', 'Gitega', 'Ngozi', 'Makamba'],
+    englishName: 'Burundi'
+  },
+  'Lesoto': {
+    capital: 'Maseru',
+    options: ['Maseru', 'Leribe', 'Mohale\'s Hoek', 'Qacha\'s Nek'],
+    englishName: 'Lesotho'
+  },
+  'Butão': {
+    capital: 'Thimphu',
+    options: ['Thimphu', 'Punakha', 'Paro', 'Phuentsholing'],
+    englishName: 'Bhutan'
+}, 'Tanzânia': {
+      capital: 'Dodoma',
+      options: ['Dodoma', 'Dar es Salaam', 'Arusha', 'Mwanza'],
+      englishName: 'Tanzania'
+    },
+    'Botswana': {
+    capital: 'Gaborone',
+    options: ['Gaborone', 'Francistown', 'Maun', 'Kasane'],
+    englishName: 'Botswana'
+},
+'Burkina Faso': {
+    capital: 'Ouagadougou',
+    options: ['Ouagadougou', 'Bobo-Dioulasso', 'Koudougou', 'Ouahigouya'],
+    englishName: 'Burkina Faso'
+},
+'Países Baixos': {
+  capital: 'Amsterdam',
+  options: ['Amsterdam', 'Den Haag', 'Rotterdam', 'Utrecht'],
+  englishName: 'Netherlands'
+},
+'Cisjordânia': {
+    capital: 'Ramala',
+    options: ['Ramala', 'Jericó', 'Belém', 'Hebrom'],
+    englishName: 'West Bank'
+},
+'Libéria': {
+    capital: 'Monróvia',
+    options: ['Monróvia', 'Gbarnga', 'Harper', 'Buchanan'],
+    englishName: 'Liberia'
+},
+'Mauritânia': {
+  capital: 'Nouakchott',
+  options: ['Nouakchott', 'Nouadhibou', 'Kaédi', 'Rosso'],
+  englishName: 'Mauritania'
+},
+'Portugal': {
+  capital: 'Lisboa',
+  options: ['Lisboa', 'Porto', 'Braga', 'Coimbra'],
+  englishName: 'Portugal'
+},
+'Geórgia': {
+  capital: 'Tbilisi',
+  options: ['Tbilisi', 'Batumi', 'Kutaisi', 'Zugdidi'],
+  englishName: 'Georgia'
+},
+'Sérvia': {
+  capital: 'Belgrado',
+  options: ['Belgrado', 'Novi Sad', 'Niš', 'Kragujevac'],
+  englishName: 'Republic of Serbia'
+},
+'Eslovênia': {
+  capital: 'Liubliana',
+  options: ['Liubliana', 'Maribor', 'Celje', 'Kranj'],
+  englishName: 'Slovenia'
+},
+'Bósnia e Herzegovina': {
+  capital: 'Sarajevo',
+  options: ['Sarajevo', 'Banja Luka', 'Tuzla', 'Zenica'],
+  englishName: 'Bosnia and Herzegovina'
+},
+'Montenegro': {
+  capital: 'Podgorica',
+  options: ['Podgorica', 'Herceg Novi', 'Nikšić', 'Bijelo Polje'],
+  englishName: 'Montenegro'
+},
+'Macedônia do Norte': {
+  capital: 'Skopje',
+  options: ['Skopje', 'Bitola', 'Ohrid', 'Kumanovo'],
+  englishName: 'Macedonia'
+},
+'Kosovo': {
+  capital: 'Pristina',
+  options: ['Pristina', 'Pec', 'Mitrovica', 'Ferizaj'],
+  englishName: 'Kosovo'
+},
+'Angola': {
+    capital: 'Luanda',
+    options: ['Luanda', 'Benguela', 'Lobito', 'Huambo'],
+    englishName: 'Angola'
+},
+'Vietnã': {
+    capital: 'Hanói',
+    options: ['Hanói', 'Cidade de Ho Chi Minh', 'Da Nang', 'Haiphong'],
+    englishName: 'Vietnam'
+},
+'Laos': {
+    capital: 'Vientiane',
+    options: ['Vientiane', 'Luang Prabang', 'Pakse', 'Savannakhet'],
+    englishName: 'Laos'
+},
+'Camboja': {
+    capital: 'Phnom Penh',
+    options: ['Phnom Penh', 'Siem Reap', 'Battambang', 'Sihanoukville'],
+    englishName: 'Cambodia'
+},
+'Brunei': {
+    capital: 'Bandar Seri Begawan',
+    options: ['Bandar Seri Begawan', 'Kuala Belait', 'Seria', 'Tutong'],
+    englishName: 'Brunei'
+},
+
+}
+
+    
+      function createQuizContent(countryName, options) {
+        const shuffledOptions = shuffleArray([...options]);
+        return `
+          <div class="country-name">${countryName}</div>
+          <div class="capital-options">
+            ${shuffledOptions.map(option => `
+              <div class="capital-option" onclick="checkAnswer('${countryName}', '${option}')">${option}</div>
+            `).join('')}
+          </div>
+        `;
+      }
+    
+      function checkAllCountriesAnswered() {
+        const totalCountries = Object.keys(countryInfo).length;
+        const correctlyAnswered = Object.values(answeredCountries).filter(status => status === 'correct').length;
+        
+        if (correctlyAnswered === totalCountries) {
+          showFireworks();
+          showHallOfFame();
+        }
+      }
+    
+      function showHallOfFame() {
+        const hallOfFameModal = document.getElementById('hall-of-fame-modal');
+        const hallOfFameEntry = document.getElementById('hall-of-fame-entry');
+        
+        hallOfFameEntry.innerHTML = `
+          <p><strong>${playerName}</strong></p>
+          <p>Pontuação: ${score}</p>
+        `;
+        
+        hallOfFameModal.style.display = 'flex';
+      }
+    
+      function closeHallOfFame() {
+        document.getElementById('hall-of-fame-modal').style.display = 'none';
+      }
+    
+      function showFireworks() {
+        const fireworksContainer = document.getElementById('fireworks-container');
+        fireworksContainer.style.display = 'block';
+        
+        const iframe = document.createElement('iframe');
+        iframe.src = 'fogos.html';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        
+        fireworksContainer.appendChild(iframe);
+      }
+    
+      window.checkAnswer = function(countryName, selectedOption) {
+    const correctCapital = countryInfo[countryName].capital;
+    const options = document.querySelectorAll('.capital-option');
+    let isCorrect = false;
+
+    options.forEach(option => {
+        if (option.textContent === correctCapital) {
+            option.classList.add('correct');  // Marca a opção correta
+        } else if (option.textContent === selectedOption && selectedOption !== correctCapital) {
+            option.classList.add('incorrect'); // Marca a opção incorreta
+        }
+        option.style.pointerEvents = 'none'; // Desabilita cliques nas opções
+    });
+
+    if (selectedOption === correctCapital) {
+        score++;
+        isCorrect = true;
+        answeredCountries[countryName] = 'correct';
+        correctSound.play();
+    } else {
+        score = Math.max(0, score - 1);
+        answeredCountries[countryName] = 'incorrect';
+        errorSound.play();
+        // Lógica para resetar a resposta após um tempo
+    }
+
+    updateScore();
+
+    setTimeout(() => {
+        document.getElementById('quiz-panel').style.display = 'none';
+        const layer = countryLayers[countryInfo[countryName].englishName];
+        if (layer) {
+            layer.setStyle({
+                fillColor: isCorrect ? '#4CAF50' : '#f44336', // Verde se correto, vermelho se incorreto
+                fillOpacity: 0.7
+            });
+        }
+
+        checkAllCountriesAnswered();
+    }, 2000);
+}
+
+    
+      function updateScore() {
+        document.getElementById('score').textContent = `Pontuação: ${score}`;
+      }
+    
+      function saveGameState() {
+        const gameState = {
+          playerName,
+          score,
+          answeredCountries
+        };
+        localStorage.setItem('mapQuizGameState', JSON.stringify(gameState));
+    
+        // Save to a JSON file on the server
+        fetch('save_game.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(gameState),
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Game saved successfully:', data);
+        })
+        .catch((error) => {
+          console.error('Error saving game:', error);
+        });
+      }
+    
+      function exitGame() {
+        saveGameState();
+        alert('Jogo salvo. Até a próxima!');
+        window.location.reload();
+      }
+    
+      function loadGameState() {
+        const savedState = localStorage.getItem('mapQuizGameState');
+        if (savedState) {
+          return JSON.parse(savedState);
+        }
+        return null;
+      }
+    
+      function askPlayerName() {
+        playerName = prompt("Por favor, digite seu nome:");
+        if (playerName) {
+          updatePlayerInfo();
+          showStartGameOptions();
+        } else {
+          askPlayerName();
+        }
+      }
+    
+      function updatePlayerInfo() {
+        document.getElementById('player-name').textContent = playerName;
+      }
+    
+      function showStartGameOptions() {
+        const savedState = loadGameState();
+        const startGameModal = document.getElementById('start-game-modal');
+        const continueGameBtn = document.getElementById('continueGameBtn');
+    
+        if (savedState && savedState.playerName === playerName) {
+          continueGameBtn.style.display = 'inline-block';
+        } else {
+          continueGameBtn.style.display = 'none';
+        }
+    
+        startGameModal.style.display = 'flex';
+      }
+    
+      function startNewGame() {
+        score = 0;
+        Object.keys(answeredCountries).forEach(key => delete answeredCountries[key]);
+        updateScore();
+        updatePlayerInfo();
+        resetMapColors();
+        document.getElementById('start-game-modal').style.display = 'none';
+      }
+    
+      function continueGame() {
+        const savedState = loadGameState();
+        if (savedState && savedState.playerName === playerName) {
+          score = savedState.score;
+          Object.assign(answeredCountries, savedState.answeredCountries);
+          updateScore();
+          updatePlayerInfo();
+          updateMapColors();
+        }
+        document.getElementById('start-game-modal').style.display = 'none';
+      }
+    
+      function resetMapColors() {
+        Object.values(countryLayers).forEach(layer => {
+          layer.setStyle({
+            fillColor: '#3388ff',
+            fillOpacity: 0.7
+          });
+        });
+      }
+    
+      function updateMapColors() {
+        Object.entries(answeredCountries).forEach(([countryName, status]) => {
+          const layer = countryLayers[countryInfo[countryName].englishName];
+          if (layer) {
+            layer.setStyle({
+              fillColor: status === 'correct' ? '#4CAF50' : '#f44336',
+              fillOpacity: 0.7
+            });
+          }
+        });
+      }
+    
+      fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+        .then(response => response.json())
+        .then(data => {
+          L.geoJSON(data, {
+            style: function(feature) {
+              return {
+                fillColor: '#3388ff',
+                weight: 2,
+                opacity: 1,
+                color: 'white',
+                fillOpacity: 0.7
+              };
+            },
+            onEachFeature: (feature, layer) => {
+          const countryName = Object.keys(countryInfo).find(key => 
+            countryInfo[key].englishName === feature.properties.name ||
+            feature.properties.name.includes(countryInfo[key].englishName)||
+            feature.properties.name === 'The Netherlands'
+          );
+          if (countryName) {
+            countryLayers[feature.properties.name] = layer;
+    
+                layer.on('mouseover', function (e) {
+                  if (!answeredCountries[countryName]) {
+                    this.setStyle({
+                      fillColor: '#ff7800',
+                      fillOpacity: 0.7
+                    });
+                  }
+                });
+                
+                layer.on('mouseout', function (e) {
+                  if (!answeredCountries[countryName]) {
+                    this.setStyle({
+                      fillColor: '#3388ff',
+                      fillOpacity: 0.7
+                    });
+                  }
+                });
+    
+                layer.on('click', function (e) {
+                  if (!answeredCountries[countryName]) {
+                    const quizPanel = document.getElementById('quiz-panel');
+                    quizPanel.innerHTML = createQuizContent(countryName, countryInfo[countryName].options);
+                    quizPanel.style.display = 'block';
+                  } else if (answeredCountries[countryName] === 'incorrect') {
+                    alert('Aguarde 1 minuto antes de tentar novamente.');
+                  }
+                });
+              }
+            }
+          }).addTo(map);
+    
+          askPlayerName();
+        });
+    </script>
+    </body></html>
